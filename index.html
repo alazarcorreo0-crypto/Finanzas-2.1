@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Finanzas Familia Macías 2.1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+font-family:Arial;
+background:#f4f6fb;
+margin:0;
+padding:20px;
+}
+
+.cards{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+gap:15px;
+margin-bottom:20px;
+}
+
+.card{
+background:white;
+padding:15px;
+border-radius:10px;
+}
+
+.indicator{
+font-size:22px;
+font-weight:bold;
+}
+
+.green{color:green}
+.yellow{color:orange}
+.red{color:red}
+
+button{
+padding:10px;
+border:none;
+background:#4f46e5;
+color:white;
+border-radius:6px;
+cursor:pointer;
+margin:5px 0;
+}
+
+.quick{
+background:#ddd;
+color:black;
+margin:5px;
+}
+
+table{
+width:100%;
+margin-top:20px;
+border-collapse:collapse;
+}
+
+th,td{
+padding:8px;
+border-bottom:1px solid #ddd;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Finanzas Familia Macías</h1>
+
+<div class="cards">
+
+<div class="card">
+<h3>Ingresos</h3>
+<div id="ingresos">$0</div>
+</div>
+
+<div class="card">
+<h3>Gastos</h3>
+<div id="gastos">$0</div>
+</div>
+
+<div class="card">
+<h3>Disponible</h3>
+<div id="disponible">$0</div>
+</div>
+
+<div class="card">
+<h3>Cheque semanal</h3>
+<div id="indicador" class="indicator">$0</div>
+</div>
+
+</div>
+
+<h2>Registro rápido</h2>
+
+<button class="quick" onclick="quick('Gasolina','Automóvil')">⛽ Gasolina</button>
+<button class="quick" onclick="quick('Súper','Compras')">🛒 Súper</button>
+<button class="quick" onclick="quick('Bebé','Familia')">👶 Bebé</button>
+
+<button onclick="agregarNomina()">💰 Agregar Nómina</button>
+
+<h2>Nueva transacción</h2>
+
+<input type="date" id="fecha">
+
+<input id="concepto" placeholder="Concepto">
+
+<input id="monto" type="number" placeholder="Monto">
+
+<select id="tipo">
+<option>Ingreso</option>
+<option>Gasto</option>
+</select>
+
+<select id="categoria">
+
+<option>Nómina</option>
+
+<option>Hogar</option>
+<option>Automóvil</option>
+<option>Familia</option>
+<option>Compras</option>
+<option>Otros</option>
+
+</select>
+
+<button onclick="agregar()">Agregar</button>
+
+<h2>Transacciones</h2>
+
+<table>
+
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Concepto</th>
+<th>Monto</th>
+<th>Categoría</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody id="tabla"></tbody>
+
+</table>
+
+<script>
+
+let data=JSON.parse(localStorage.getItem("finanzas2"))||{
+transacciones:[],
+ultimaSemana:null
+}
+
+function guardar(){
+localStorage.setItem("finanzas2",JSON.stringify(data))
+}
+
+function quick(concepto,categoria){
+
+document.getElementById("concepto").value=concepto
+document.getElementById("categoria").value=categoria
+document.getElementById("tipo").value="Gasto"
+
+}
+
+function agregar(){
+
+let t={
+fecha:fecha.value,
+concepto:concepto.value,
+monto:Number(monto.value),
+tipo:tipo.value,
+categoria:categoria.value
+}
+
+data.transacciones.push(t)
+
+guardar()
+render()
+
+}
+
+function agregarNomina(){
+
+let monto=prompt("Monto de la nómina")
+
+if(!monto)return
+
+let hoy=new Date()
+
+let dia=hoy.getDay()
+
+let diferencia=(5-dia+7)%7
+
+hoy.setDate(hoy.getDate()+diferencia)
+
+let fecha=hoy.toISOString().split("T")[0]
+
+data.transacciones.push({
+
+fecha:fecha,
+concepto:"Nómina",
+monto:Number(monto),
+tipo:"Ingreso",
+categoria:"Nómina"
+
+})
+
+guardar()
+
+render()
+
+}
+
+function agregarGastosSemanales(){
+
+let hoy=new Date()
+
+if(hoy.getDay()!=6)return
+
+let semana=hoy.getFullYear()+"-"+getWeek(hoy)
+
+if(data.ultimaSemana==semana)return
+
+let gastos=[
+
+["Renta",268.75,"Hogar"],
+["Luz",18.75,"Hogar"],
+["Teléfonos",15,"Hogar"],
+["Internet",17.50,"Hogar"],
+
+["Carro",66.25,"Automóvil"],
+["Aseguranza",28.50,"Automóvil"],
+
+["Suscripción",5.25,"Hogar"]
+
+]
+
+gastos.forEach(g=>{
+
+data.transacciones.push({
+
+fecha:hoy.toISOString().split("T")[0],
+concepto:g[0],
+monto:g[1],
+tipo:"Gasto",
+categoria:g[2]
+
+})
+
+})
+
+data.ultimaSemana=semana
+
+guardar()
+
+}
+
+function getWeek(d){
+
+d=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()))
+d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7))
+
+var yearStart=new Date(Date.UTC(d.getUTCFullYear(),0,1))
+var weekNo=Math.ceil((((d-yearStart)/86400000)+1)/7)
+
+return weekNo
+
+}
+
+function render(){
+
+let ingresos=0
+let gastos=0
+
+data.transacciones.forEach(t=>{
+
+if(t.tipo=="Ingreso") ingresos+=t.monto
+if(t.tipo=="Gasto") gastos+=t.monto
+
+})
+
+let disponible=ingresos-gastos
+
+document.getElementById("ingresos").innerText="$"+ingresos.toFixed(2)
+document.getElementById("gastos").innerText="$"+gastos.toFixed(2)
+document.getElementById("disponible").innerText="$"+disponible.toFixed(2)
+
+let gastosSemana=0
+
+let hoy=new Date()
+
+data.transacciones.forEach(t=>{
+
+let fecha=new Date(t.fecha)
+
+let diff=(hoy-fecha)/(1000*60*60*24)
+
+if(diff<=7 && t.tipo=="Gasto"){
+gastosSemana+=t.monto
+}
+
+})
+
+let restante=647.50-gastosSemana
+
+let indicador=document.getElementById("indicador")
+
+indicador.innerText="$"+restante.toFixed(2)
+
+if(restante>200){
+
+indicador.className="indicator green"
+
+}else if(restante>0){
+
+indicador.className="indicator yellow"
+
+}else{
+
+indicador.className="indicator red"
+
+}
+
+let tabla=document.getElementById("tabla")
+
+tabla.innerHTML=""
+
+data.transacciones.forEach((t,i)=>{
+
+tabla.innerHTML+=`
+
+<tr>
+<td>${t.fecha}</td>
+<td>${t.concepto}</td>
+<td style="color:${t.tipo=="Gasto"?"red":"green"}">$${t.monto}</td>
+<td>${t.categoria}</td>
+<td><button onclick="eliminar(${i})">X</button></td>
+</tr>
+
+`
+
+})
+
+}
+
+function eliminar(i){
+
+data.transacciones.splice(i,1)
+
+guardar()
+
+render()
+
+}
+
+agregarGastosSemanales()
+
+render()
+
+</script>
+
+</body>
+</html>
